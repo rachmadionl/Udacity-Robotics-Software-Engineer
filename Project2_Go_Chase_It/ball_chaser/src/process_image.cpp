@@ -34,7 +34,9 @@ void process_image_callback(const sensor_msgs::Image img)
     // Then, identify if this pixel falls in the left, mid, or right side of the image
     // Depending on the white ball position, call the drive_bot function and pass velocities to it
     // Request a stop when there's no white ball seen by the camera
-    for (int i = 0; i < img.height * img.step; i++) {
+
+    // Jump every 3 steps instead of 1 so that it will always on the same pixel when detecting a ball or not.
+    for (int i = 0; i + 2 < img.height * img.step; i = i + 3) {
         // img.data[i], img.data[i+1], and img.data[i+2] corresponds to R, G, and B channel of a pixel
         if (img.data[i] == white_pixel && img.data[i+1] == white_pixel && img.data[i+2] == white_pixel) {
             white_step = i % img.step;
@@ -45,18 +47,35 @@ void process_image_callback(const sensor_msgs::Image img)
     // initialize lin_x and ang_z to be zero
     float lin_x = 0, ang_z = 0;
 
+    // This condition here provides more smoothness in movement of the bot
+    // althouth it still is kind of juggy.
+
     // if 0 < white_step <= 0.3 * img.step, the ball is on the left
     if ((white_step <= 0.3 * img.step) && (white_step > 0.)) {
-        ang_z = 0.3;
+        ang_z = 0.5;
+        lin_x = 0.25;
     }
     
-    // if 0.7 * img.step <= white_step, the ball is on the right 
+    // if 0.3 * img.step < white_step <= 0.4 * img.step, the ball still on the left, but increase lin_x, decrease ang_z
+    if ((white_step <= 0.4 * img.step) && (white_step > 0.3)) {
+        ang_z = 0.45;
+        lin_x = 0.35;
+    }
+    
+    // if 0.6 * img.step <= white_step < 0.7, the ball is on the right 
+    else if ((white_step >= 0.6 * img.step) && (white_step < 0.7 * img.step)) {
+        ang_z = -0.45;
+        lin_x = 0.35;
+    }
+
+    // if 0.7 * img.step <= white_step, the ball is still on the right, but decrease lin_x , increase ang_z 
     else if (white_step >= 0.7 * img.step) {
-        ang_z = -0.3;
+        ang_z = -0.5;
+        lin_x = 0.25;
     }
 
     else if (white_step != -1.) {
-        lin_x = 0.3;
+        lin_x = 0.5;
     }
 
     drive_robot(lin_x, ang_z);
